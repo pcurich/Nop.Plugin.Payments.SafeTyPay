@@ -1,0 +1,20 @@
+﻿@model Nop.Plugin.Payments.SafeTyPay.Models.ConfigurationModel
+@inject Nop.Core.IWebHelper webHelper
+@{
+    Layout = "_ConfigurePlugin";
+}
+
+@await Component.InvokeAsync("StoreScopeConfiguration")
+
+<div class="content">
+    <div class="form-horizontal">
+        <nop-panels>
+            <nop-panel asp-name="Configure" asp-icon="fa fa-plus-square" asp-title=@T("Plugins.Payments.SafeTyPay.Configure") asp-hide-block-attribute-name="Configure" asp-hide=false asp-advanced="false">
+                @await Html.PartialAsync("~/Plugins/Payments.SafeTyPay/Views/_Configure.Configure.cshtml", Model)
+            </nop-panel>
+            <nop-panel asp-name="PaymentPending" asp-icon="fa fa-plus-square" asp-title=@T("Plugins.Payments.SafeTyPay.PaymentPending") asp-hide-block-attribute-name="PaymentPending" asp-hide=true asp-advanced="false">
+                @await Html.PartialAsync("~/Plugins/Payments.SafeTyPay/Views/_Configure.PaymentPending.cshtml", Model)
+            </nop-panel>
+        </nop-panels>
+    </div>
+</div>

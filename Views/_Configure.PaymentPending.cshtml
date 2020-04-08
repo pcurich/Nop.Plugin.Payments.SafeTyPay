@@ -1,0 +1,28 @@
+﻿@model Nop.Plugin.Payments.SafeTyPay.Models.ConfigurationModel
+
+    <div class="content">
+        <div class="panel-group">
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    @{
+                        if (Model.PendingPaymen != null)
+                        {
+
+                            foreach (var line in Model.PendingPaymen)
+                            {
+                                <div class="form-group">
+                                    <div class="col-md-3">
+                                        @line.Key
+                                    </div>
+                                    <div class="col-md-9">
+                                        <textarea rows="4" cols="100">@line.Value.Trim()</textarea>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    

@@ -1,0 +1,156 @@
+﻿@model Nop.Plugin.Payments.SafeTyPay.Models.ConfigurationModel
+ 
+<form asp-controller="PaymentSafeTyPay" asp-action="Configure" method="post">
+    <div class="panel-group">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                @Html.Raw(T("Plugins.Payments.SafeTyPay.Instructions"))
+                <div class="form-group">
+                    <div class="col-md-12">
+                        <h3>
+                            <code>@T("Plugins.Payments.SafeTyPay.General")</code>
+                        </h3>
+                        <hr />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="UseSandbox_OverrideForStore" asp-input="UseSandbox" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="UseSandbox" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="UseSandbox" />
+                        <span asp-validation-for="UseSandbox"></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="CanGenerateNewCode_OverrideForStore" asp-input="CanGenerateNewCode" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="CanGenerateNewCode" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="CanGenerateNewCode" />
+                        <span asp-validation-for="CanGenerateNewCode"></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="ExpirationTime_OverrideForStore" asp-input="ExpirationTime" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="ExpirationTime" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="ExpirationTime" />
+                        <span asp-validation-for="ExpirationTime"></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="AdditionalFee_OverrideForStore" asp-input="AdditionalFee" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="AdditionalFee" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="AdditionalFee" />
+                        <span asp-validation-for="AdditionalFee"></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="AdditionalFeePercentage_OverrideForStore" asp-input="AdditionalFeePercentage" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="AdditionalFeePercentage" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="AdditionalFeePercentage" />
+                        <span asp-validation-for="AdditionalFeePercentage"></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-12">
+                        <hr />
+                        <h3>
+                            <code>@T("Plugins.Payments.SafeTyPay.Merchant.Management.System")</code>
+                        </h3>
+                        (<a href="https://sandbox-secure.safetypay.com/Merchants/Login.aspx" target="_blank">sandbox-secure.safetypay.com</a>) <br />
+                        (<a href="https://secure.safetypay.com/Merchants/Login.aspx" target="_blank">secure.safetypay.com</a>)
+                        <hr />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="UserNameMMS_OverrideForStore" asp-input="UserNameMMS" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="UserNameMMS" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="UserNameMMS" />
+                        <span asp-validation-for="UserNameMMS"></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="PasswordMMS_OverrideForStore" asp-input="PasswordMMS" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="PasswordMMS" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="PasswordMMS" />
+                        <span asp-validation-for="PasswordMMS"></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-12">
+                        <hr />
+                        <h3>
+                            <code>@T("Plugins.Payments.SafeTyPay.Technical.Documentation")</code>
+                        </h3>
+                        (<a href="https://developers.safetypay.com/v2.0/docs/" target="_blank">https://developers.safetypay.com/v2.0/docs</a>)
+                        <hr />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="PasswordTD_OverrideForStore" asp-input="PasswordTD" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="PasswordTD" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="PasswordTD" />
+                        <span asp-validation-for="PasswordTD"></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-12">
+                        <hr />
+                        <h3>
+                            <code>@T("Plugins.Payments.SafeTyPay.Environment")</code>
+                        </h3>
+                        <hr />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="ApiKey_OverrideForStore" asp-input="ApiKey" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="ApiKey" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="ApiKey" />
+                        <span asp-validation-for="ApiKey"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-override-store-checkbox asp-for="SignatureKey_OverrideForStore" asp-input="SignatureKey" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
+                        <nop-label asp-for="SignatureKey" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="SignatureKey" />
+                        <span asp-validation-for="SignatureKey"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="col-md-9 col-md-offset-3">
+                        <input type="submit" name="save" class="btn bg-primary" value="@T("Admin.Common.Save")" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

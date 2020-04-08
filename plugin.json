@@ -1,0 +1,11 @@
+﻿{
+  "Group": "Payment methods",
+  "FriendlyName": "SafeTyPay",
+  "SystemName": "Payments.SafeTyPay",
+  "Version": "1.01",
+  "SupportedVersions": ["4.00","4.10", "4.20" ],
+  "Author": "Kreier-Solutions",
+  "DisplayOrder": 1,
+  "FileName": "Nop.Plugin.Payments.SafeTyPay.dll",
+  "Description": "This plugin allows paying with SafeTyPay"
+}
