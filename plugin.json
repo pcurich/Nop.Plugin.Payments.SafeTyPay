@@ -3,7 +3,7 @@
   "FriendlyName": "SafeTyPay",
   "SystemName": "Payments.SafeTyPay",
   "Version": "1.01",
-  "SupportedVersions": ["4.20"],
+  "SupportedVersions": ["4.00"],
   "Author": "Kreier-Solutions",
   "DisplayOrder": 1,
   "FileName": "Nop.Plugin.Payments.SafeTyPay.dll",
