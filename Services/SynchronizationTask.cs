@@ -126,86 +126,87 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
             #region ExpressToken
 
             var requestExpressToken = _safeTyPayHttpClient.GetExpressTokenRequest(order.CustomerId, newOrderGuid.ToString(), order.OrderTotal);
-            var strResult = WebUtility.UrlDecode(_safeTyPayHttpClient.GetExpressTokenResponse(requestExpressToken).Result);
+            var strResult = WebUtility.UrlDecode(_safeTyPayHttpClient.GetExpressTokenResponse(requestExpressToken).Result)??"";
             var responseExpressToken = SafeTyPayHelper.ToExpressTokenResponse(strResult);
             if (responseExpressToken == null)
             {
                 _logger.Error(string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.ResponseExpressToken"), strResult));
             }
-
-            #endregion ExpressToken
-
-            #region request simulator
-
-            var fakeResult = WebUtility.UrlDecode(_safeTyPayHttpClient.FakeHttpRequest(responseExpressToken.ClientRedirectURL).Result);
-
-            #endregion request simulator
-
-            #region Update Notification Table temporal
-
-            sf.ClientRedirectURL = responseExpressToken.ClientRedirectURL;
-            sf.OperationCode = fakeResult.Length > SafeTyPayPaymentProcessor.FAKE_RESULT_LENGTH;
-
-            #endregion Update Notification Table temporal
-
-
-            //order note
-            _orderService.InsertOrderNote(new OrderNote
+            else
             {
-                OrderId = order.Id,
-                Note = string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew1"), order.AuthorizationTransactionResult),
-                DisplayToCustomer = false,
-                CreatedOnUtc = DateTime.UtcNow
-            });
-            _orderService.InsertOrderNote(new OrderNote
-            {
-                OrderId = order.Id,
-                Note = string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew2"), order.AuthorizationTransactionResult),
-                DisplayToCustomer = false,
-                CreatedOnUtc = DateTime.UtcNow
-            });
-            _orderService.InsertOrderNote(new OrderNote
-            {
-                OrderId = order.Id,
-                Note = _localizationService.GetResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew3"),
-                DisplayToCustomer = false,
-                CreatedOnUtc = DateTime.UtcNow
-            });
+                #region request simulator
 
-            #region Notification Token
+                var fakeResult = WebUtility.UrlDecode(_safeTyPayHttpClient.FakeHttpRequest(responseExpressToken.ClientRedirectURL).Result);
 
-            var requestNotificationToken = _safeTyPayHttpClient.GetNotificationRequest(newOrderGuid.ToString());
-            strResult = WebUtility.UrlDecode(_safeTyPayHttpClient.GetNotificationResponse(requestNotificationToken).Result);
-            var responseNotificationToken = SafeTyPayHelper.ToOperationActivityResponse(strResult, newOrderGuid.ToString());
-            if (responseNotificationToken == null)
-            {
-                _logger.Error(string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.ResponseOperationToken"), strResult));
+                #endregion request simulator
+
+                #region Update Notification Table temporal
+
+                sf.ClientRedirectURL = responseExpressToken.ClientRedirectURL;
+                sf.OperationCode = fakeResult!=null && fakeResult.Length > SafeTyPayPaymentProcessor.FAKE_RESULT_LENGTH;
+
+                #endregion Update Notification Table temporal
+
+                #region AddNotes
+                _orderService.InsertOrderNote(new OrderNote
+                {
+                    OrderId = order.Id,
+                    Note = string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew1"), order.AuthorizationTransactionResult),
+                    DisplayToCustomer = false,
+                    CreatedOnUtc = DateTime.UtcNow
+                });
+                _orderService.InsertOrderNote(new OrderNote
+                {
+                    OrderId = order.Id,
+                    Note = string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew2"), order.AuthorizationTransactionResult),
+                    DisplayToCustomer = false,
+                    CreatedOnUtc = DateTime.UtcNow
+                });
+                _orderService.InsertOrderNote(new OrderNote
+                {
+                    OrderId = order.Id,
+                    Note = _localizationService.GetResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew3"),
+                    DisplayToCustomer = false,
+                    CreatedOnUtc = DateTime.UtcNow
+                });
+                #endregion AddNotes
+
+                #region Notification Token
+
+                var requestNotificationToken = _safeTyPayHttpClient.GetNotificationRequest(newOrderGuid.ToString());
+                strResult = WebUtility.UrlDecode(_safeTyPayHttpClient.GetNotificationResponse(requestNotificationToken).Result)??"";
+                var responseNotificationToken = SafeTyPayHelper.ToOperationActivityResponse(strResult, newOrderGuid.ToString());
+                if (responseNotificationToken == null)
+                {
+                    _logger.Error(string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.ResponseOperationToken"), strResult));
+                }
+                else
+                {
+                    _orderService.InsertOrderNote(new OrderNote
+                    {
+                        OrderId = order.Id,
+                        Note = string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.SendRequestExpiredNew4"), responseNotificationToken),
+                        DisplayToCustomer = false,
+                        CreatedOnUtc = DateTime.UtcNow
+                    });
+                    order.OrderGuid = newOrderGuid;
+
+                    #region newOrderGuid
+                    order.AuthorizationTransactionResult = responseNotificationToken;
+                    order.AuthorizationTransactionCode = responseNotificationToken;
+                    order.AuthorizationTransactionId = responseExpressToken.ClientRedirectURL;
+                    sf.PaymentReferenceNo = responseNotificationToken;
+                    sf.MerchantSalesID = newOrderGuid.ToString();
+                    #endregion newOrderGuid
+
+                    _orderService.UpdateOrder(order);
+                    _notification.UpdateNotificationRequest(sf);
+
+                    _logger.Information(string.Format("OrderId={0}-successful | New SafeTyPayCode-{1}", order.Id, sf.PaymentReferenceNo));
+                }
+                #endregion Notification Token
             }
-
-            _orderService.InsertOrderNote(new OrderNote
-            {
-                OrderId = order.Id,
-                Note = string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.SendRequestExpiredNew4"), responseNotificationToken),
-                DisplayToCustomer = false,
-                CreatedOnUtc = DateTime.UtcNow
-            });
-            order.OrderGuid = newOrderGuid;
-
-            #endregion Notification Token
-
-            #region newOrderGuid
-
-            order.AuthorizationTransactionResult = responseNotificationToken;
-            order.AuthorizationTransactionCode = responseNotificationToken;
-            order.AuthorizationTransactionId = responseExpressToken.ClientRedirectURL;
-            sf.PaymentReferenceNo = responseNotificationToken;
-            sf.MerchantSalesID = newOrderGuid.ToString();
-            #endregion newOrderGuid
-
-            _orderService.UpdateOrder(order);
-            _notification.UpdateNotificationRequest(sf);
-
-            _logger.Information(string.Format("OrderId={0}-successful | New SafeTyPayCode-{1}", order.Id, sf.PaymentReferenceNo));
+            #endregion ExpressToken
         }
 
         /// <summary>
@@ -217,9 +218,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
         {
             order.CaptureTransactionResult = sf.StatusCode;
             order.CaptureTransactionId = sf.ReferenceNo;
-            order.PaymentStatusId = (int)PaymentStatus.Paid;
-            order.PaidDateUtc = DateTime.UtcNow;
-
+ 
             _orderService.InsertOrderNote(new OrderNote
             {
                 OrderId = order.Id,

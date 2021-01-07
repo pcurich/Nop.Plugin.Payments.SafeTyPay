@@ -2,34 +2,34 @@
 
 namespace Nop.Plugin.Payments.SafeTyPay.Domain
 {
-    public class NotificationRequestSafeTyPay : BaseEntity
-    { 
+    public partial class NotificationRequestSafeTyPay : BaseEntity
+    {
         #region from safetypay
 
         /// <summary>
         ///     The Api Key Used
         /// </summary>
-        public string ApiKey { get; set; }
+        public string ApiKey { get; set; } = null!;
 
         /// <summary>
         /// the Request Date Time
         /// </summary>
-        public string RequestDateTime { get; set; }
+        public string RequestDateTime { get; set; } = null!;
 
         /// <summary>
         /// the MerchantSalesID from safetypay or OrderGuid
         /// </summary>
-        public string MerchantSalesID { get; set; }
+        public string MerchantSalesID { get; set; } = null!;
 
         /// <summary>
         /// The ReferenceNo fro mSafetyPay
         /// </summary>
-        public string ReferenceNo { get; set; }
+        public string ReferenceNo { get; set; } = null!;
 
         /// <summary>
         /// The Creation Date Time 
         /// </summary>
-        public string CreationDateTime { get; set; }
+        public string CreationDateTime { get; set; } = null!;
 
         /// <summary>
         /// The Amount to inform
@@ -39,34 +39,34 @@ namespace Nop.Plugin.Payments.SafeTyPay.Domain
         /// <summary>
         /// The CurrencyId Of Order
         /// </summary>
-        public string CurrencyId { get; set; }
+        public string CurrencyId { get; set; } = null!;
 
         /// <summary>
         /// The PaymentReferenceNo to pay in bank
         /// </summary>
-        public string PaymentReferenceNo { get; set; }
+        public string PaymentReferenceNo { get; set; } = null!;
 
         /// <summary>
         /// the Status Code send by safetypay
         /// </summary>
-        public string StatusCode { get; set; }
+        public string StatusCode { get; set; } = null!;
 
         /// <summary>
         /// The signature send by safetypay
         /// </summary>
-        public string Signature { get; set; }
+        public string Signature { get; set; } = null!;
 
         /// <summary>
         /// The origin Message from SafeTyPay
         /// </summary>
-        public string Origin { get; set; }
+        public string Origin { get; set; } = null!;
 
         #endregion from safetypay
 
         /// <summary>
         /// Save the Url redirect to pay 
         /// </summary>
-        public string ClientRedirectURL { get; set; }
+        public string ClientRedirectURL { get; set; } = null!;
 
         /// <summary>
         /// Check if the operationcode nro exist

@@ -12,7 +12,7 @@ namespace Nop.Plugin.Payments.SafeTyPay
         /// <summary>
         /// Prefix Sandbox
         /// </summary>
-        public string PrefixSandbox { get; set; }
+        public string PrefixSandbox { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets a value indicating whether to use sandbox (testing environment)
@@ -26,12 +26,12 @@ namespace Nop.Plugin.Payments.SafeTyPay
         /// <summary>
         /// Url to transaction Ok
         /// </summary>
-        public string TransactionOkURL { get; set; }
+        public string TransactionOkURL { get; set; } = null!;
 
         /// <summary>
         /// Url to transaction Error
         /// </summary>
-        public string TransactionErrorURL { get; set; }
+        public string TransactionErrorURL { get; set; } = null!;
 
         /// <summary>
         /// Expiration time to life of operation code
@@ -60,12 +60,12 @@ namespace Nop.Plugin.Payments.SafeTyPay
         /// <summary>
         /// Only for remember the UserName by SafetyPay
         /// </summary>
-        public string UserNameMMS { get; set; }
+        public string UserNameMMS { get; set; } = null!;
 
         /// <summary>
         /// Only for remember the password by SafetyPay
         /// </summary>
-        public string PasswordMMS { get; set; }
+        public string PasswordMMS { get; set; } = null!;
 
         #endregion
 
@@ -74,7 +74,7 @@ namespace Nop.Plugin.Payments.SafeTyPay
         /// <summary>
         /// Only for remember the password by SafetyPay
         /// </summary>
-        public string PasswordTD { get; set; }
+        public string PasswordTD { get; set; } = null!;
 
         #endregion
 
@@ -83,22 +83,22 @@ namespace Nop.Plugin.Payments.SafeTyPay
         /// <summary>
         /// Api Key From MMS of SafetyPay
         /// </summary>
-        public string ApiKey { get; set; }
+        public string ApiKey { get; set; } = null!;
 
         /// <summary>
         /// Signature Key From MMS of SafetyPay
         /// </summary>
-        public string SignatureKey { get; set; }
+        public string SignatureKey { get; set; } = null!;
 
         /// <summary>
         /// Express Token Url
         /// </summary>
-        public string ExpressTokenUrl { get; set; }
+        public string ExpressTokenUrl { get; set; } = null!;
 
         /// <summary>
         /// Express Token Url
         /// </summary>
-        public string NotificationUrl { get; set; }
+        public string NotificationUrl { get; set; } = null!;
 
         #endregion
     }

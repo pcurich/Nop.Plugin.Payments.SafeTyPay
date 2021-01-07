@@ -13,6 +13,7 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <Version>1.0.1</Version>
     <Description>This payment module allows you to integrate with payment gateway SafeTyPay. Let the system manage payments using scheduled tasks</Description>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -58,10 +59,6 @@
     <Content Include="Views\_ViewImports.cshtml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.1" />
   </ItemGroup>
 
   <!-- This target execute after "Build" target -->

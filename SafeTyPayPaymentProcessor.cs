@@ -130,8 +130,17 @@ namespace Nop.Plugin.Payments.SafeTyPay
                 var notification = new NotificationRequestSafeTyPay
                 {
                     ApiKey = _safeTyPayPaymentSettings.ApiKey,
-                    MerchantSalesID = ppr.OrderGuid.ToString()
-                };
+                    MerchantSalesID = ppr.OrderGuid.ToString(),
+                    ClientRedirectURL = "",
+                    Origin = "",
+                    Signature = "",
+                    StatusCode = "",
+                    PaymentReferenceNo = "",
+                    CurrencyId="",
+                    CreationDateTime= DateTime.UtcNow.ToLongDateString(),
+                    ReferenceNo = "",
+                    RequestDateTime = DateTime.UtcNow.ToLongDateString(),
+                }; 
                 _notification.InsertNotificationRequest(notification);
 
                 #endregion
@@ -140,12 +149,12 @@ namespace Nop.Plugin.Payments.SafeTyPay
 
                 var hasToken = false;
                 var numberOfAttempts = 0;
-                ExpressTokenResponse responseExpressToken = null;
+                var responseExpressToken = new ExpressTokenResponse();
 
                 while (_safeTyPayPaymentSettings.NumberOfAttemps >= numberOfAttempts && !hasToken) {
                     numberOfAttempts++;
                     var requestExpressToken = _safeTyPayHttpClient.GetExpressTokenRequest(ppr.CustomerId, ppr.OrderGuid.ToString(), ppr.OrderTotal);
-                    var strResult = WebUtility.UrlDecode(_safeTyPayHttpClient.GetExpressTokenResponse(requestExpressToken).Result);
+                    var strResult = WebUtility.UrlDecode(_safeTyPayHttpClient.GetExpressTokenResponse(requestExpressToken).Result)??"";
                     responseExpressToken = SafeTyPayHelper.ToExpressTokenResponse(strResult);
                     if (responseExpressToken == null)
                     {
@@ -160,7 +169,7 @@ namespace Nop.Plugin.Payments.SafeTyPay
                 #endregion ExpressToken
 
 
-                if (hasToken)
+                if (hasToken && responseExpressToken!= null)
                 {
                     #region request simulator
 
@@ -173,8 +182,15 @@ namespace Nop.Plugin.Payments.SafeTyPay
                     notification = _notification.GetNotificationRequestByMerchanId(ppr.OrderGuid);
                     if (notification != null)
                     {
-                        notification.ClientRedirectURL = responseExpressToken != null ? responseExpressToken.ClientRedirectURL : "ERROR";
-                        notification.OperationCode = fakeResult.Length > FAKE_RESULT_LENGTH;
+                        var url = responseExpressToken != null ? responseExpressToken.ClientRedirectURL : "ERROR";
+                        notification.ClientRedirectURL = url;
+                        notification.OperationCode = fakeResult!=null && fakeResult.Length > FAKE_RESULT_LENGTH;
+                        _notification.UpdateNotificationRequest(notification);
+                        result = new ProcessPaymentResult
+                        {
+                            AuthorizationTransactionId = url,
+                            AuthorizationTransactionResult = "[OPERATION-CODE]"
+                        };
                     }
                     else
                     {
@@ -184,14 +200,6 @@ namespace Nop.Plugin.Payments.SafeTyPay
                         _logger.Error(t);
                         #endregion Error in safetypay brocker
                     }
-
-                    _notification.UpdateNotificationRequest(notification);
-
-                    result = new ProcessPaymentResult
-                    {
-                        AuthorizationTransactionId = responseExpressToken.ClientRedirectURL,
-                        AuthorizationTransactionResult = "[OPERATION-CODE]"
-                    };
 
                     #endregion Update Notification in Table
                 }
@@ -206,7 +214,7 @@ namespace Nop.Plugin.Payments.SafeTyPay
             }
             catch (Exception ex)
             {
-                _logger.Error(string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.ProcessPayment"), ex.StackTrace.ToString()));
+                _logger.Error(string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.ProcessPayment"), ex.StackTrace?.ToString()));
             }
             return result;
         }
@@ -243,10 +251,10 @@ namespace Nop.Plugin.Payments.SafeTyPay
                     }
                 }
 
-                if (!tmp.OperationCode)
+                if (tmp!=null && !tmp.OperationCode)
                 {
                     var fakeResult = WebUtility.UrlDecode(_safeTyPayHttpClient.FakeHttpRequest(order.AuthorizationTransactionId).Result);
-                    tmp.OperationCode = fakeResult.Length > FAKE_RESULT_LENGTH;
+                    tmp.OperationCode = fakeResult != null && fakeResult.Length > FAKE_RESULT_LENGTH;
                 }
 
                 #endregion Check OperationCode
@@ -254,9 +262,9 @@ namespace Nop.Plugin.Payments.SafeTyPay
                 #region Notification Token
 
                 var requestNotificationToken = _safeTyPayHttpClient.GetNotificationRequest(order.OrderGuid.ToString());
-                var strResult = WebUtility.UrlDecode(_safeTyPayHttpClient.GetNotificationResponse(requestNotificationToken).Result);
+                var strResult = WebUtility.UrlDecode(_safeTyPayHttpClient.GetNotificationResponse(requestNotificationToken).Result) ?? "";
                 var responseNotificationToken = SafeTyPayHelper.ToOperationActivityResponse(strResult, order.OrderGuid.ToString());
-                if (responseNotificationToken == null)
+                if (responseNotificationToken.Length == 0)
                 {
                     _logger.Error(string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.ResponseOperationToken"), strResult));
                 }
@@ -281,7 +289,7 @@ namespace Nop.Plugin.Payments.SafeTyPay
             }
             catch (Exception ex)
             {
-                _logger.Error(string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.PostProcessPayment"), ex.StackTrace.ToString()));
+                _logger.Error(string.Format(_localizationService.GetResource("Plugins.Payments.SafeTyPay.Error.PostProcessPayment"), ex.StackTrace?.ToString()));
                 _httpContextAccessor.HttpContext.Response.Redirect(_storeContext.CurrentStore.Url);
             }
 
@@ -421,6 +429,7 @@ namespace Nop.Plugin.Payments.SafeTyPay
             _settingService.SaveSetting(new SafeTyPayPaymentSettings
             {
                 UseSandbox = SafeTyPayDefaults.UseSandbox,
+                PrefixSandbox = SafeTyPayDefaults.PrefixSandbox,
                 ExpirationTime = SafeTyPayDefaults.ExpirationTime,
 
                 AdditionalFee = SafeTyPayDefaults.AdditionalFee,
@@ -440,6 +449,7 @@ namespace Nop.Plugin.Payments.SafeTyPay
                 SignatureKey = "",
                 ExpressTokenUrl = SafeTyPayDefaults.ExpressTokenUrl,
                 NotificationUrl = SafeTyPayDefaults.NotificationUrl,
+
             });
 
             //ScheduleTask
@@ -466,129 +476,129 @@ namespace Nop.Plugin.Payments.SafeTyPay
             _topicService.InsertTopic(topic);
 
             //locales
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Configure", "Configure", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Configure", "Configuración", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.PaymentPending", "Payment Pending", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.PaymentPending", "Pago Pendiente", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.General", "General", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.General", "General", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Configure", "Configure", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Configure", "Configuración", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.PaymentPending", "Payment Pending", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.PaymentPending", "Pago Pendiente", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.General", "General", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.General", "General", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox", "Use Sandbox","en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox", "Use Sandbox","es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox.Hint", "Check to enable development mode.", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox.Hint", "Marque para habilitar el modo de desarrollo.", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox", "Use Sandbox","en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox", "Use Sandbox","es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox.Hint", "Check to enable development mode.", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox.Hint", "Marque para habilitar el modo de desarrollo.", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime", "Duration", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime", "Duración", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime.Hint", "Time in minutes to expire the operation code by safetypay.Value given in minutes: 90, 60, 1440, 30, etc", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime.Hint", "Tiempo en minutos para expirar el código de operación provisto por safetypay. Valor dado en minutos: 90, 60, 1440, 30, etc.", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime", "Duration", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime", "Duración", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime.Hint", "Time in minutes to expire the operation code by safetypay.Value given in minutes: 90, 60, 1440, 30, etc", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime.Hint", "Tiempo en minutos para expirar el código de operación provisto por safetypay. Valor dado en minutos: 90, 60, 1440, 30, etc.", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee", "Additional fee (Value)", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee", "Cuota Adicional (Valor)", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee.Hint", "Enter additional fee to charge your customers.", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee.Hint", "Ingrese una tarifa adicional para cobrar a sus clientes.", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee", "Additional fee (Value)", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee", "Cuota Adicional (Valor)", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee.Hint", "Enter additional fee to charge your customers.", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee.Hint", "Ingrese una tarifa adicional para cobrar a sus clientes.", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps", "Number of Attemps", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps", "Número de intentos", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps.Hint", "Enter a number of attemps if safetypasy server is bussy.", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps.Hint", "Ingrese un numero de intentos ante un problema de saturación del servidor de safetypay.", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps", "Number of Attemps", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps", "Número de intentos", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps.Hint", "Enter a number of attemps if safetypasy server is bussy.", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps.Hint", "Ingrese un numero de intentos ante un problema de saturación del servidor de safetypay.", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage", "Additional fee (%)", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage", "Cuota Adicional (%)", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage.Hint", "Enter percentage additional fee to charge your customers.", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage.Hint", "Ingrese un procentaje adicional para cobrar a sus clientes.", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage", "Additional fee (%)", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage", "Cuota Adicional (%)", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage.Hint", "Enter percentage additional fee to charge your customers.", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage.Hint", "Ingrese un procentaje adicional para cobrar a sus clientes.", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Merchant.Management.System", "Merchant Management System", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Merchant.Management.System", "Sistema de Gestión Comercial", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Merchant.Management.System", "Merchant Management System", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Merchant.Management.System", "Sistema de Gestión Comercial", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS", "UserName", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS", "Usuario", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS.Hint", "Save UserName access", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS.Hint", "Guardar nombre de usuario", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS", "UserName", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS", "Usuario", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS.Hint", "Save UserName access", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS.Hint", "Guardar nombre de usuario", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS", "Password", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS", "Contraseña", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS.Hint", "Save secret Password", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS.Hint", "Guardar contraseña secreta", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS", "Password", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS", "Contraseña", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS.Hint", "Save secret Password", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS.Hint", "Guardar contraseña secreta", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Technical.Documentation", "Technical Documentation", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Technical.Documentation", "Documentación Técnica", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Technical.Documentation", "Technical Documentation", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Technical.Documentation", "Documentación Técnica", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD", "Password", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD", "Contraseña", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD.Hint", "Save secret Password", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD.Hint", "Guardar contraseña secreta", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD", "Password", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD", "Contraseña", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD.Hint", "Save secret Password", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD.Hint", "Guardar contraseña secreta", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Environment", "Environment", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Environment", "Entorno", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Environment", "Environment", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Environment", "Entorno", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey", "Api Key", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey", "Api Key", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey.Hint", "the ApiKey", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey.Hint", "La llave de la Api", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey", "Api Key", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey", "Api Key", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey.Hint", "the ApiKey", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey.Hint", "La llave de la Api", "es-ES");
             
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey", "Signature Key", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey", "Signature Key", "es-ES");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey.Hint", "The Signature Key", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey.Hint", "The Signature Key", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey", "Signature Key", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey", "Signature Key", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey.Hint", "The Signature Key", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey.Hint", "The Signature Key", "es-ES");
 
 
              
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.Case102", "Payment completed successfully with reference Code {0}", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.Case102", "Pago completado con éxito con el código de referencia {0}", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.Case102", "Payment completed successfully with reference Code {0}", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.Case102", "Pago completado con éxito con el código de referencia {0}", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequest", "Send to SafetyPay for the code Operation {0}", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequest", "Se envio a SafetyPay por el codigo de operación {0}", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequest", "Send to SafetyPay for the code Operation {0}", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequest", "Se envio a SafetyPay por el codigo de operación {0}", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew1", "The code {0} was expired by SafetyPay", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew1", "El código {0}  fue caducado por SafetyPay", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew1", "The code {0} was expired by SafetyPay", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew1", "El código {0}  fue caducado por SafetyPay", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew2", "The order with the operation code has expired {0}", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew2", "La orden con el código de operación {0} ha vencido", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew2", "The order with the operation code has expired {0}", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew2", "La orden con el código de operación {0} ha vencido", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew3", "System  request new code to SafeTyPay", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew3", "El sistema solicita un nuevo código a SafeTyPay", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew3", "System  request new code to SafeTyPay", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew3", "El sistema solicita un nuevo código a SafeTyPay", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew4", "SafetyPay send new operation code {0} to System", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew4", "SafetyPay send new operation code {0} to System", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew4", "SafetyPay send new operation code {0} to System", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew4", "SafetyPay send new operation code {0} to System", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.RedirectionTip", "You will be redirected to the SafetyPay site to obtain the operation number", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Fields.RedirectionTip", "Será redirigido al sitio de SafetyPay para obtener el numero de operación", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.RedirectionTip", "You will be redirected to the SafetyPay site to obtain the operation number", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.RedirectionTip", "Será redirigido al sitio de SafetyPay para obtener el numero de operación", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.PaymentMethodDescription", "Code generated by SafeTyPay", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.PaymentMethodDescription", "Código geneado por SafeTyPay", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.PaymentMethodDescription", "Code generated by SafeTyPay", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.PaymentMethodDescription", "Código geneado por SafeTyPay", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseExpressToken", "Error in Response Express Token {0}", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseExpressToken", "Error la respuesta del Express Token {0}", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseExpressToken", "Error in Response Express Token {0}", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseExpressToken", "Error la respuesta del Express Token {0}", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseOperationToken", "Error in Response Opeation Token {0}", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseOperationToken", "Error en la respuesta de notificacion Token {0}", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseOperationToken", "Error in Response Opeation Token {0}", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseOperationToken", "Error en la respuesta de notificacion Token {0}", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.ProcessPayment", "Error in the Process Payment Executed {0}", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.ProcessPayment", "Error en la ejecución Process Payment {0}", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.ProcessPayment", "Error in the Process Payment Executed {0}", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.ProcessPayment", "Error en la ejecución Process Payment {0}", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcess", "Error in the Process Payment with safetypay, try later", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcess", "Error en la ejecución del Proceso de pago, intente en unos minutos", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcess", "Error in the Process Payment with safetypay, try later", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcess", "Error en la ejecución del Proceso de pago, intente en unos minutos", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcessDataBase", "Error internal, try later", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcessDataBase", "Sucedio un error interno, intente en unos minutos", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcessDataBase", "Error internal, try later", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcessDataBase", "Sucedio un error interno, intente en unos minutos", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.PostProcessPayment", "Error in the Post Process Payment Executed {0}", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.PostProcessPayment", "Error en la ejecución Post Process Payment {0}", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.PostProcessPayment", "Error in the Post Process Payment Executed {0}", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.PostProcessPayment", "Error en la ejecución Post Process Payment {0}", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.SchedulerTask.Execute", "Error in the executed task {0}", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.SchedulerTask.Execute", "Error en la ejecución de la tarea {0}", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.SchedulerTask.Execute", "Error in the executed task {0}", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.SchedulerTask.Execute", "Error en la ejecución de la tarea {0}", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.RecurringPayment", "Recurring payment not supported", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.RecurringPayment", "Pago recurrentes no soportados ", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.RecurringPayment", "Recurring payment not supported", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.RecurringPayment", "Pago recurrentes no soportados ", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.Refund", "Refund method not supported", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.Refund", "Método de reembolso no admitido", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.Refund", "Refund method not supported", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.Refund", "Método de reembolso no admitido", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.Void", "Void method not supported", "en-US");
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Error.Void", "Método vacío no admitido", "es-ES");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.Void", "Void method not supported", "en-US");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.Void", "Método vacío no admitido", "es-ES");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Instructions", @"
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Instructions", @"
             <p> If you are using this gateway, please make sure that SafeTyPay supports the currency of your main store. </p>
             <p> The <strong> general </strong> fields have the purpose of storing the credentials granted by SafeTyPay that give access to the <strong> Commercial Management System </strong> by means of a username and password which are sent by email. once the commercial management with the company has started. </p>
             <p> The password of the <strong> technical documentation </strong> provides access to the documentary portal that this company provides. </p>
@@ -597,7 +607,7 @@ namespace Nop.Plugin.Payments.SafeTyPay
             <p> The payments that SafeTyPay reports are <strong> asynchronous </strong>, this means that payment notifications are stored in the system and subsequently synchronized by means of a scheduled task that synchronizes payments from time to time, configurable in the next path to <a href='" + _webHelper.GetStoreLocation() + @"Admin/ScheduleTask/List'> scheduled tasks </a> </p>
             <p> To find out if you have notifications sent by SafeTyPay that have not yet been processed, <strong> see the section below </strong> </p>", "en-US");
 
-            _localizationService.AddOrUpdateLocaleResource("Plugins.Payments.SafeTyPay.Instructions", @"
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Payments.SafeTyPay.Instructions", @"
             <p>Si está utilizando esta puerta de enlace, asegúrese de que SafeTyPay admita la moneda de su tienda principal.</p>
             <p>Los campos <strong>generales</strong> tienen la finalidad de almacenar las credenciales otorgadas por SafeTyPay que dan acceso al <strong>Sistema de Gestión Comercial</strong> mediante un usuario y contraseña los cuales son enviado por correo una vez iniciada la gestión comercial con la empresa.</p>
             <p>La contraseña de la <strong>documentación técnica</strong> brinda el acceso al portal documentario que esta empresa brinda.</p>
@@ -626,59 +636,59 @@ namespace Nop.Plugin.Payments.SafeTyPay
                 _topicService.DeleteTopic(topic);
 
             //locales
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Configure");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.PaymentPending");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.General");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Configure");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.PaymentPending");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.General");
 
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox.Hint");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime.Hint");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee.Hint");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage.Hint");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UseSandbox.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ExpirationTime.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFee.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.AdditionalFeePercentage.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps.Hint");
 
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Merchant.Management.System");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS.Hint");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Merchant.Management.System");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.UserNameMMS.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordMMS.Hint");
 
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Technical.Documentation");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Technical.Documentation");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.PasswordTD.Hint");
 
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Environment");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey.Hint");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Environment");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.ApiKey.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.SignatureKey.Hint");
 
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Note.Case102");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequest");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew1");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew2");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew3");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew4");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.Case102");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequest");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew1");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew2");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew3");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Note.SendRequestExpiredNew4");
 
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Fields.RedirectionTip");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.PaymentMethodDescription");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Fields.RedirectionTip");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.PaymentMethodDescription");
 
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseExpressToken");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseOperationToken");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.ProcessPayment");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcess");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcessDataBase");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.PostProcessPayment");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.SchedulerTask.Execute");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.RecurringPayment");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.Refund");
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Error.Void");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseExpressToken");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.ResponseOperationToken");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.ProcessPayment");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcess");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.InProcessDataBase");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.PostProcessPayment");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.SchedulerTask.Execute");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.RecurringPayment");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.Refund");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Error.Void");
 
-            _localizationService.DeleteLocaleResource("Plugins.Payments.SafeTyPay.Instructions");
+            _localizationService.DeletePluginLocaleResource("Plugins.Payments.SafeTyPay.Instructions");
 
         }
 
@@ -719,7 +729,7 @@ namespace Nop.Plugin.Payments.SafeTyPay
         /// Button is similar to Redirection payment methods. 
         /// The only difference is used that it's displayed as a button on shopping cart page (for example, Google Checkout).
         /// </summary>
-        public PaymentMethodType PaymentMethodType => PaymentMethodType.Standard;
+        public PaymentMethodType PaymentMethodType => PaymentMethodType.Redirection;
 
         /// <summary>
         /// Gets a value indicating whether we should display a payment information page for this plugin

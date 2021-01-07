@@ -6,44 +6,44 @@
         public int ErrorNumber { get; set; } //0 : No error 1 : API Key not recognized 2 : Signature not valid 3 : Other errors
 
         //String (ISO 8601: yyyy-MM-ddThh:mm:ss) Merchant Date and Time used to compose signature
-        public string ResponseDateTime { get; set; } //2007-01-31T14:24:59
+        public string ResponseDateTime { get; set; } = null!;//2007-01-31T14:24:59
 
         //String (max-lenght = 20) Reference number of the sale.(the same used in the purchase process or call to CreateTokenExpress)
-        public string MerchantSalesID { get; set; } //ORD-10001,
+        public string MerchantSalesID { get; set; } = null!;//ORD-10001,
 
         //String (lenght = 32) SafetyPay Operation Identifier
-        public string ReferenceNo { get; set; }  //0119182951762562
+        public string ReferenceNo { get; set; } = null!;//0119182951762562
 
         //String (ISO 8601: yyyy-MM-ddThh:mm:ss)  Creation date of the transactio
-        public string CreationDateTime { get; set; }//2007-01-31T14:24:59
+        public string CreationDateTime { get; set; } = null!;//2007-01-31T14:24:59
 
         //Decimal The amount of the transaction.Use 2 decimals.
-        public decimal Amount { get; set; } //100.00
+        public decimal Amount { get; set; }//100.00
 
         //String(ISO-4217) Currency of the transaction
-        public string CurrencyId { get; set; } //USD
+        public string CurrencyId { get; set; } = null!; //USD
 
         //String(max-lenght = 20) Reference number of the payment operation
-        public string PaymentReferenceNo { get; set; } //ORD-10001,
+        public string PaymentReferenceNo { get; set; } = null!; //ORD-10001,
 
         //Status of SafetyPay operation
-        public string Status { get; set; }//“102”, “201”, etc
+        public string Status { get; set; } = null!;//“102”, “201”, etc
 
         //Merchant’s order number or MerchantSalesID.
-        public string OrderNo { get; set; } //ORD-10001,
+        public string OrderNo { get; set; } = null!;//ORD-10001,
 
         //Refer to https://developers.safetypay.com/docs/notification-signature-calculator#section-request-signature-calculator
-        public string Signature { get; set; } //Hash SHA256 :
-
-                                              //RequestDateTime
-                                              //+MerchantSalesID
-                                              //+ReferenceNo
-                                              //+CreationDateTime
-                                              //+Amount
-                                              //+CurrencyID
-                                              //+PaymentReferenceNo
-                                              //+Status
-                                              //+SignatureKey
+        public string Signature { get; set; } = null!;
+                                                //Hash SHA256 :
+                                                //RequestDateTime
+                                                //+MerchantSalesID
+                                                //+ReferenceNo
+                                                //+CreationDateTime
+                                                //+Amount
+                                                //+CurrencyID
+                                                //+PaymentReferenceNo
+                                                //+Status
+                                                //+SignatureKey
 
         public string ToParameter()
         {

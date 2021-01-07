@@ -118,7 +118,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Infrastructure
 
         #region Mapping
 
-        public static ExpressTokenResponse ToExpressTokenResponse(string tokenResponse)
+        public static ExpressTokenResponse? ToExpressTokenResponse(string tokenResponse)
         {
             try
             {
@@ -168,7 +168,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Infrastructure
             }
             catch (Exception)
             {
-                return null;
+                return "";
             }
         }
 

@@ -11,6 +11,8 @@ namespace Nop.Plugin.Payments.SafeTyPay.Models
         [NopResourceDisplayName("Plugins.Payments.SafeTyPay.Fields.NumberOfAttemps")]
         public int NumberOfAttemps { get; set; }
 
+        public bool NumberOfAttemps_OverrideForStore { get; set; }
+
         [NopResourceDisplayName("Plugins.Payments.SafeTyPay.Fields.UseSandbox")]
         public bool UseSandbox { get; set; }
 
@@ -38,31 +40,31 @@ namespace Nop.Plugin.Payments.SafeTyPay.Models
         public bool AdditionalFeePercentage_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Plugins.Payments.SafeTyPay.Fields.UserNameMMS")]
-        public string UserNameMMS { get; set; }
+        public string UserNameMMS { get; set; } = null!;
 
         public bool UserNameMMS_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Plugins.Payments.SafeTyPay.Fields.PasswordMMS")]
-        public string PasswordMMS { get; set; }
+        public string PasswordMMS { get; set; } = null!;
 
         public bool PasswordMMS_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Plugins.Payments.SafeTyPay.Fields.PasswordTD")]
-        public string PasswordTD { get; set; }
+        public string PasswordTD { get; set; } = null!;
 
         public bool PasswordTD_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Plugins.Payments.SafeTyPay.Fields.ApiKey")]
-        public string ApiKey { get; set; }
+        public string ApiKey { get; set; } = null!;
 
         public bool ApiKey_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Plugins.Payments.SafeTyPay.Fields.SignatureKey")]
-        public string SignatureKey { get; set; }
+        public string SignatureKey { get; set; } = null!;
 
         public bool SignatureKey_OverrideForStore { get; set; }
 
-        public IDictionary<string,string> PendingPaymen { get; set; }
+        public IDictionary<string,string>? PendingPaymen { get; set; }
 
     }
 }

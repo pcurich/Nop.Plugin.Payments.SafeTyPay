@@ -29,7 +29,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
         /// </summary>
         /// <param name="merchandId"></param>
         /// <returns></returns>
-        NotificationRequestSafeTyPay GetNotificationRequestByMerchanId(Guid merchandId);
+        NotificationRequestSafeTyPay? GetNotificationRequestByMerchanId(Guid merchandId);
 
         /// <summary>
         /// Update a notificationRequestTemp

@@ -46,7 +46,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
         {
             //configure client
             client.Timeout = TimeSpan.FromMilliseconds(5000);
-            client.DefaultRequestHeaders.Add(HeaderNames.UserAgent, $"nopCommerce-{NopVersion.CURRENT_VERSION}");
+            client.DefaultRequestHeaders.Add(HeaderNames.UserAgent, $"nopCommerce-{NopVersion.CurrentVersion}");
 
             _httpClient = client;
             _emailAccountService = emailAccountService;
@@ -74,7 +74,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
         /// <param name="orderGuid">processPaymentRequest.OrderGuid.ToString()</param>
         /// <param name="orderTotal">processPaymentRequest.OrderTotal</param>
         /// <returns>The asynchronous task whose result contains the PDT details</returns>
-        public async Task<string> GetExpressTokenResponse(List<KeyValuePair<string, string>> postData)
+        public async Task<string?> GetExpressTokenResponse(List<KeyValuePair<string, string>> postData)
         {
             var url = string.Format(_safeTyPayPaymentSettings.ExpressTokenUrl,
             _safeTyPayPaymentSettings.UseSandbox ? SafeTyPayDefaults.PrefixSandbox : "");
@@ -118,7 +118,6 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
                 TransactionOkURL = string.Format(_safeTyPayPaymentSettings.TransactionOkURL.Trim(), _webHelper.GetStoreLocation()),
                 TransactionErrorURL = _safeTyPayPaymentSettings.TransactionErrorURL.Trim(),
                 CustomMerchantName = _storeContext.CurrentStore.Name,
-                ShopperEmail = emailAccount.Email.Trim(),
                 ProductID = 8,
                 ResponseFormat = "CSV"
             };
@@ -132,7 +131,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
             {
                 phone = phone.Trim();
                 phone = Regex.Replace(phone.Replace(" ", ""), "[^0-9.]", "");
-                if (phone.Length > 9)
+                if (phone.Length >= 9)
                 {
                     phone = phone.Substring(phone.Length - 9, 9);
                 }
@@ -145,6 +144,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
             }
 
             token.ShopperInformation_email = customer.Email.Trim();
+            token.ShopperEmail = customer.Email.Trim();
             token.Signature = SafeTyPayHelper.ComputeSha256Hash(token, _safeTyPayPaymentSettings.SignatureKey);
             return token.ToParameter();
         }
@@ -153,7 +153,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
 
         #region Methods Notification
 
-        public async Task<string> GetNotificationResponse(List<KeyValuePair<string, string>> postData)
+        public async Task<string?> GetNotificationResponse(List<KeyValuePair<string, string>> postData)
         {
             var url = string.Format(_safeTyPayPaymentSettings.NotificationUrl,
                 _safeTyPayPaymentSettings.UseSandbox ? SafeTyPayDefaults.PrefixSandbox : "");
@@ -194,7 +194,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
         /// </summary>
         /// <param name="clientRedirectURL"></param>
         /// <returns></returns>
-        public async Task<string> FakeHttpRequest(string clientRedirectURL)
+        public async Task<string?> FakeHttpRequest(string clientRedirectURL)
         {
             try{
                 var request = new HttpRequestMessage

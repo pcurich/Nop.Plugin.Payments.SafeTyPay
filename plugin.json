@@ -7,8 +7,5 @@
   "Author": "Kreier-Solutions",
   "DisplayOrder": 1,
   "FileName": "Nop.Plugin.Payments.SafeTyPay.dll",
-  "Description": "This plugin allows paying with SafeTyPay",
-  "LimitedToStores": "",
-  "LimitedToCustomerRoles": "",
-  "DependsOnSystemNames": ""
+  "Description": "This plugin allows paying with SafeTyPay"
 }

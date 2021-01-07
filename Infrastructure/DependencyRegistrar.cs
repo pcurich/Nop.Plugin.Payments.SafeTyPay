@@ -17,7 +17,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Infrastructure
         /// <param name="builder"></param>
         /// <param name="typeFinder"></param>
         /// <param name="appSettings"></param>
-        public void Register(ContainerBuilder builder, ITypeFinder typeFinder, AppSettings appSettings)
+        public void Register(ContainerBuilder builder, ITypeFinder typeFinder, NopConfig appSettings)
         {
             builder.RegisterType<NotificationRequestService>().As<INotificationRequestService>().InstancePerLifetimeScope();
         }

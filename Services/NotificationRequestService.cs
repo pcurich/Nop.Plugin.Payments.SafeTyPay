@@ -50,7 +50,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Services
             _repository.Insert(notificationRequestTemp);
         }
 
-        public virtual NotificationRequestSafeTyPay GetNotificationRequestByMerchanId(Guid merchandId)
+        public virtual NotificationRequestSafeTyPay? GetNotificationRequestByMerchanId(Guid merchandId)
         {
             if (merchandId == Guid.Empty)
                 return null;

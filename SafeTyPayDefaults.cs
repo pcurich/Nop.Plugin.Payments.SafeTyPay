@@ -33,17 +33,17 @@
 
         #region SafeTyPayPaymentSettings
 
-        public static string PrefixSandbox => "sandbox-mws2.";
+        public static string PrefixSandbox => "sandbox-";
         public static bool UseSandbox => true;
         public static int NumberOfAttemps => 3;
-        public static string TransactionOkURL => "{0}/order/history";
-        public static string TransactionErrorURL => "{0}/SafeTyPayError";
+        public static string TransactionOkURL => "{0}order/history";
+        public static string TransactionErrorURL => "{0}SafeTyPayError";
         public static int ExpirationTime => 1440;
         public static decimal AdditionalFee => 0;
         public static bool AdditionalFeePercentage => false;
 
-        public static string ExpressTokenUrl => "https://{0}safetypay.com/express/ws/v.3.0/Post/CreateExpressToken";
-        public static string NotificationUrl => "https://{0}safetypay.com/express/ws/v.3.0/Post/GetOperation";
+        public static string ExpressTokenUrl => "https://{0}mws2.safetypay.com/express/ws/v.3.0/Post/CreateExpressToken";
+        public static string NotificationUrl => "https://{0}mws2.safetypay.com/express/ws/v.3.0/Post/GetOperation";
 
         #endregion SafeTyPayPaymentSettings
     }

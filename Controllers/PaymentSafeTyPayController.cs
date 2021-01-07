@@ -10,7 +10,7 @@ using Nop.Core.Domain.Orders;
 using Nop.Core.Domain.Payments;
 using Nop.Plugin.Payments.SafeTyPay.Models;
 using Nop.Plugin.Payments.SafeTyPay.Services;
-using Nop.Services.Common;
+using System.Threading.Tasks;
 using Nop.Services.Configuration;
 using Nop.Services.Localization;
 using Nop.Services.Logging;
@@ -84,7 +84,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
             var order = _orderService.GetOrderByGuid(orderNumberGuid);
             if (order == null)
             {
-                _logger.Error("PayPal IPN. Order is not found", new NopException(ipnInfo));
+                _logger.Error("Order is not found", new NopException(ipnInfo));
                 return;
             }
 
@@ -130,7 +130,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
                         //failed payment
                         var failedPaymentResult = new ProcessPaymentResult
                         {
-                            Errors = new[] { $"PayPal IPN. Recurring payment is {nameof(PaymentStatus.Voided).ToLower()} ." },
+                            Errors = new[] { $"Recurring payment is {nameof(PaymentStatus.Voided).ToLower()} ." },
                             RecurringPaymentFailed = true
                         };
                         _orderProcessingService.ProcessNextRecurringPayment(rp, failedPaymentResult);
@@ -139,7 +139,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
             }
 
             //OrderService.InsertOrderNote(newOrder.OrderId, sb.ToString(), DateTime.UtcNow);
-            _logger.Information("PayPal IPN. Recurring info", new NopException(ipnInfo));
+            _logger.Information("Recurring info", new NopException(ipnInfo));
         }
 
         protected virtual void ProcessPayment(string orderNumber, string ipnInfo, PaymentStatus newPaymentStatus, decimal mcGross, string transactionId)
@@ -159,7 +159,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
 
             if (order == null)
             {
-                _logger.Error("PayPal IPN. Order is not found", new NopException(ipnInfo));
+                _logger.Error("Order is not found", new NopException(ipnInfo));
                 return;
             }
 
@@ -177,7 +177,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
             //validate order total
             if ((newPaymentStatus == PaymentStatus.Authorized || newPaymentStatus == PaymentStatus.Paid) && !Math.Round(mcGross, 2).Equals(Math.Round(order.OrderTotal, 2)))
             {
-                var errorStr = $"PayPal IPN. Returned order total {mcGross} doesn't equal order total {order.OrderTotal}. Order# {order.Id}.";
+                var errorStr = $"Returned order total {mcGross} doesn't equal order total {order.OrderTotal}. Order# {order.Id}.";
                 //log
                 _logger.Error(errorStr);
                 //order note
@@ -236,13 +236,12 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
             }
         }
 
-        protected virtual NotificationRequest ProcessNotifcationRequest(string strRequest)
+        protected virtual NotificationRequest? ProcessNotifcationRequest(string strRequest)
         {
-            NotificationRequest notification = null;
+            var notification = new NotificationRequest();
             try
             {
                 var token = strRequest.Split('&');
-                notification = new NotificationRequest();
 
                 foreach (var t in token)
                 {
@@ -290,12 +289,13 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
                             break;
                     }
                 }
+                return notification;
             }
             catch (Exception ex)
             {
-                _logger.Error(ex.InnerException.ToString());
+                _logger.Error(ex.InnerException?.ToString());
+                return null;
             }
-            return notification;
         }
 
         #endregion Utilities
@@ -319,7 +319,7 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
                 ExpirationTime = safeTyPayPaymentSettings.ExpirationTime,
                 AdditionalFee = safeTyPayPaymentSettings.AdditionalFee,
                 AdditionalFeePercentage = safeTyPayPaymentSettings.AdditionalFeePercentage,
-
+                NumberOfAttemps = safeTyPayPaymentSettings.NumberOfAttemps,
                 UserNameMMS = safeTyPayPaymentSettings.UserNameMMS,
                 PasswordMMS = safeTyPayPaymentSettings.PasswordMMS,
                 PasswordTD = safeTyPayPaymentSettings.PasswordTD,
@@ -331,19 +331,22 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
                 ActiveStoreScopeConfiguration = storeScope
             };
 
-            model.PendingPaymen = new Dictionary<string, string>();
-
             var data = _notificationRequestService.GetAllNotificationRequestTemp();
-            foreach (var d in data)
+            if (data.Count > 0)
             {
-                if (d.Origin != null && d.Origin.Length > 0 && d.CreationDateTime != null)
-                    model.PendingPaymen.Add(d.CreationDateTime != null ? d.CreationDateTime : "--/--/---- --:--:--", d.Origin != null ? d.Origin : "--------------------");
+                model.PendingPaymen = new Dictionary<string, string>();
+                foreach (var d in data)
+                {
+                    if (d.Origin != null && d.Origin.Length > 0 && d.CreationDateTime != null)
+                        model.PendingPaymen.Add(d.CreationDateTime != null ? d.CreationDateTime : "--/--/---- --:--:--", d.Origin != null ? d.Origin : "--------------------");
+                }
             }
-
+            
             if (storeScope <= 0)
                 return View("~/Plugins/Payments.SafeTyPay/Views/Configure.cshtml", model);
 
             model.UseSandbox_OverrideForStore = _settingService.SettingExists(safeTyPayPaymentSettings, x => x.UseSandbox, storeScope);
+            model.NumberOfAttemps_OverrideForStore = _settingService.SettingExists(safeTyPayPaymentSettings, x => x.NumberOfAttemps, storeScope);
             model.CanGenerateNewCode_OverrideForStore = _settingService.SettingExists(safeTyPayPaymentSettings, x => x.CanGenerateNewCode, storeScope);
             model.UserNameMMS_OverrideForStore = _settingService.SettingExists(safeTyPayPaymentSettings, x => x.UserNameMMS, storeScope);
             model.PasswordMMS_OverrideForStore = _settingService.SettingExists(safeTyPayPaymentSettings, x => x.PasswordMMS, storeScope);
@@ -384,11 +387,13 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
             safeTyPayPaymentSettings.ExpirationTime = model.ExpirationTime;
             safeTyPayPaymentSettings.AdditionalFee = model.AdditionalFee;
             safeTyPayPaymentSettings.AdditionalFeePercentage = model.AdditionalFeePercentage;
+            safeTyPayPaymentSettings.NumberOfAttemps = model.NumberOfAttemps;
 
             /* We do not clear cache after each setting update.
              * This behavior can increase performance because cached settings will not be cleared
              * and loaded from database after each update */
             _settingService.SaveSettingOverridablePerStore(safeTyPayPaymentSettings, x => x.UseSandbox, model.UseSandbox_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(safeTyPayPaymentSettings, x => x.NumberOfAttemps, model.NumberOfAttemps_OverrideForStore, storeScope, false);
             _settingService.SaveSettingOverridablePerStore(safeTyPayPaymentSettings, x => x.CanGenerateNewCode, model.CanGenerateNewCode_OverrideForStore, storeScope, false);
             _settingService.SaveSettingOverridablePerStore(safeTyPayPaymentSettings, x => x.UserNameMMS, model.UserNameMMS_OverrideForStore, storeScope, false);
             _settingService.SaveSettingOverridablePerStore(safeTyPayPaymentSettings, x => x.PasswordMMS, model.PasswordMMS_OverrideForStore, storeScope, false);
@@ -408,7 +413,8 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
         }
 
         [HttpPost]
-        public IActionResult SafeTyPayAutomaticNotification()
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> SafeTyPayAutomaticNotification()
         {
             byte[] parameters;
             var storeScope = _storeContext.ActiveStoreScopeConfiguration;
@@ -416,37 +422,42 @@ namespace Nop.Plugin.Payments.SafeTyPay.Controllers
 
             using (var stream = new MemoryStream())
             {
-                Request.Body.CopyTo(stream);
+                await Request.Body.CopyToAsync(stream);
                 parameters = stream.ToArray();
             }
 
             var request = ProcessNotifcationRequest(Encoding.ASCII.GetString(parameters));
 
-            var notification = _notificationRequestService.GetNotificationRequestByMerchanId(new Guid(request.MerchantSalesID));
-            var domain = request.ToDomain();
-            if (notification != null)
-            {
-                notification.RequestDateTime = domain.RequestDateTime;
-                notification.ReferenceNo = domain.ReferenceNo;
-                notification.CreationDateTime = domain.CreationDateTime;
-                notification.Amount = domain.Amount;
-                notification.CurrencyId = domain.CurrencyId;
-                notification.PaymentReferenceNo = domain.PaymentReferenceNo;
-                notification.StatusCode = domain.StatusCode;
-                notification.Signature = domain.Signature;
-                notification.Origin = Encoding.ASCII.GetString(parameters);
-                _notificationRequestService.UpdateNotificationRequest(notification);
+            if (request != null) {
+                var notification = _notificationRequestService.GetNotificationRequestByMerchanId(new Guid(request.MerchantSalesID));
+                var domain = request.ToDomain();
+                if (notification != null)
+                {
+                    notification.RequestDateTime = domain.RequestDateTime;
+                    notification.ReferenceNo = domain.ReferenceNo;
+                    notification.CreationDateTime = domain.CreationDateTime;
+                    notification.Amount = domain.Amount;
+                    notification.CurrencyId = domain.CurrencyId;
+                    notification.PaymentReferenceNo = domain.PaymentReferenceNo;
+                    notification.StatusCode = domain.StatusCode;
+                    notification.Signature = domain.Signature;
+                    notification.Origin = Encoding.ASCII.GetString(parameters);
+                    _notificationRequestService.UpdateNotificationRequest(notification);
+                }
+                else
+                {
+                    _notificationRequestService.InsertNotificationRequest(request.ToDomain());
+                }
+                //check signature from equest
+                var result = request.IsValid(safeTyPayPaymentSettings.SignatureKey);
+                if (result)
+                {
+                    var response = request.ToResponse(safeTyPayPaymentSettings.SignatureKey);
+                    var csvResponse = response.ToParameter();
+                    return Content(csvResponse);
+                }
             }
-            else
-            {
-                _notificationRequestService.InsertNotificationRequest(request.ToDomain());
-            }
-            //check signature from equest
-            var result = request.IsValid(safeTyPayPaymentSettings.SignatureKey);
-            var response = request.ToResponse(safeTyPayPaymentSettings.SignatureKey);
-
-            var csvResponse = response.ToParameter();
-            return Content(csvResponse);
+            return Content("");
         }
 
         #endregion Methods
